@@ -2,7 +2,7 @@ import React, {useContext, useEffect} from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createDrawerNavigator} from '@react-navigation/drawer';
 
-import DashboardScreen from '../screens/DashboardScreen';
+import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import metrics from '../constant/metrics';
 
 const Stack = createNativeStackNavigator();
