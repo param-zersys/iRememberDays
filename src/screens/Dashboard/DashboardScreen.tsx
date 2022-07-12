@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {Modal, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import metrics from '../../constant/metrics';
 import CustomHeader from '../../components/CustomHeader';
@@ -25,6 +25,90 @@ const DashboardScreen: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Moment>(moment());
   const [overlayView, setOverlayView] = useState<boolean>(false);
 
+  const setAsyncStorage = async (dateArray: dateType[]) => {
+    try {
+      await MMKV.setArrayAsync('dateArray', dateArray);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  const getStoredDate = async () => {
+    const asyncData = await MMKV.getArrayAsync('dateArray');
+    const typeData: dateType[] = asyncData as dateType[];
+    if (asyncData) {
+      setEventsArray([...typeData]);
+    }
+  };
+  useEffect(() => {
+    getStoredDate();
+  }, []);
+  const EventView = (props: {dateInfo: dateType}) => {
+    const {dateInfo} = props;
+
+    const eventDate = moment(dateInfo.date);
+    const todayDate = moment();
+    const eventDatePresentYear = moment(dateInfo.date).set(
+      'year',
+      todayDate.year(),
+    );
+    return (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          paddingHorizontal: 16,
+          marginTop: 16,
+        }}>
+        <View
+          style={{
+            height: 70,
+            width: 70,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colors.blue,
+            borderRadius: 16,
+          }}>
+          <Text
+            style={{
+              fontWeight: 'bold',
+              color: colors.gray,
+              fontSize: 18,
+              marginBottom: 5,
+            }}>
+            {todayDate.diff(eventDatePresentYear, 'days')}
+          </Text>
+          <Text
+            style={{
+              fontSize: 9,
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              color: colors.gray,
+            }}>
+            days
+          </Text>
+          <Text
+            style={{
+              fontSize: 9,
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              color: colors.gray,
+            }}>
+            to go
+          </Text>
+        </View>
+        <View style={{marginLeft: 16, marginBottom: 8}}>
+          <Text style={{fontWeight: 'bold', marginBottom: 8}}>
+            {dateInfo?.eventName}
+          </Text>
+          <Text>
+            {eventDate.format('DD MMMM YYYY')} (
+            {todayDate.diff(eventDate, 'years')} Years)
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const AddDateModel = () => {
     const [showTextInput, setShowTextInput] = useState<boolean>(false);
     const [eventName, setEventName] = useState<string>('');
@@ -45,6 +129,11 @@ const DashboardScreen: React.FC = () => {
               justifyContent: 'center',
               width: metrics.width,
             }}>
+            <TouchableOpacity
+              style={{alignSelf: 'flex-end', top: -6, left: -10}}
+              onPress={() => setOverlayView(false)}>
+              <Text style={{fontWeight: 'bold'}}>X</Text>
+            </TouchableOpacity>
             <Text
               style={{
                 fontWeight: 'bold',
@@ -64,11 +153,16 @@ const DashboardScreen: React.FC = () => {
               title="Save"
               onPress={() => {
                 const id = _.uniqueId();
+                const tempEventArray = [...eventsArray];
                 setEventsArray(prev => [
                   ...prev,
-                  {date: selectedDate.toString(), eventName: eventName, id},
+                  {date: selectedDate.toISOString(), eventName: eventName, id},
                 ]);
-                console.log(eventsArray);
+                setAsyncStorage([
+                  ...tempEventArray,
+                  {date: selectedDate.toISOString(), eventName: eventName, id},
+                ]);
+                setOverlayView(false);
               }}
             />
           </View>
@@ -80,10 +174,18 @@ const DashboardScreen: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center',
             }}>
+            <TouchableOpacity
+              style={{alignSelf: 'flex-end', top: -5, left: -10}}
+              onPress={() => setOverlayView(false)}>
+              <Text style={{fontWeight: 'bold'}}>X</Text>
+            </TouchableOpacity>
             <CalendarPicker
               onDateChange={date => setSelectedDate(date)}
               selectedStartDate={selectedDate.toDate()}
             />
+            <View style={{marginBottom: 8}}>
+              <Text>Selected Date {selectedDate.format('DD-MMM-YYYY')}</Text>
+            </View>
             <Button
               color={colors.gray}
               title="Next"
@@ -163,12 +265,20 @@ const DashboardScreen: React.FC = () => {
             }}>
             Events
           </Text>
-          <View style={{justifyContent: 'center', alignItems: 'center'}}>
-            <Text
-              style={{fontWeight: 'bold', color: colors.black, marginTop: 16}}>
-              No Events
-            </Text>
-          </View>
+          {eventsArray.length ? (
+            eventsArray.map(item => <EventView dateInfo={item} key={item.id} />)
+          ) : (
+            <View style={{justifyContent: 'center', alignItems: 'center'}}>
+              <Text
+                style={{
+                  fontWeight: 'bold',
+                  color: colors.black,
+                  marginTop: 16,
+                }}>
+                No Events
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -192,7 +302,7 @@ const DashboardScreen: React.FC = () => {
       <Modal
         animationType="slide"
         transparent={true}
-        visible={true}
+        visible={overlayView}
         onRequestClose={() => {
           setOverlayView(false);
         }}>
